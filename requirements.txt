@@ -1,8 +1,8 @@
-flask==3.0.3
-gunicorn==21.2.0
-curl_cffi==0.7.1
-beautifulsoup4==4.12.3
-feedparser==6.0.11
-requests==2.32.3
-scikit-learn==1.5.0
-numpy==1.26.4
+flask>=3.0
+gunicorn>=21.2
+curl_cffi>=0.7
+beautifulsoup4>=4.12
+feedparser>=6.0
+requests>=2.31
+scikit-learn>=1.4
+numpy>=1.26,<3
