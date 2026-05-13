@@ -10,7 +10,7 @@ The app scrapes live data from HLTV (rankings, results, rosters, map pools, mult
 
 ## Live Demo
 
-🌐 **[https://cs2-predictor.onrender.com](https://cs2-predictor.onrender.com)** ← (replace with your deployed URL)
+🌐 **[https://cs2-predictor-k1ah.onrender.com](https://cs2-predictor-k1ah.onrender.com)**
 
 > Free Render tier sleeps after 15 min of inactivity — first request may take ~30s to wake up.
 
