@@ -8,7 +8,12 @@ import sqlite3
 import feedparser
 import requests
 from bs4 import BeautifulSoup
-from playwright.sync_api import sync_playwright
+# Playwright is optional — only the legacy scrapers use it, not the webapp.
+# Skip on production (Render free tier doesn't have Chrome binaries installed).
+try:
+    from playwright.sync_api import sync_playwright
+except ImportError:
+    sync_playwright = None
 from datetime import datetime
 import json
 import os
