@@ -216,17 +216,42 @@
 <div class="card mb-6">
     <div class="card-header"><i class="bi bi-diagram-3 text-accent"></i> Head-to-Head Stat Comparison</div>
     <div class="p-5">
-        {% macro stat_row(label, v1, v2, t1_name, t2_name, format='', higher_better=true) %}
-        {% set t1_better = (v1 > v2) if higher_better else (v1 < v2) %}
+        {#
+          stat_row: numeric comparison only (NO string compare).
+          - v1, v2 must be numeric (or None for missing data → shows as 'NR')
+          - lower_is_better=True for things like world rank (#1 is best)
+          - if either side is None, the other side wins automatically
+          - if both None or equal, neither side gets the green check
+        #}
+        {% macro stat_row(label, v1, v2, prefix='', suffix='', lower_is_better=false) %}
+        {% set has1 = v1 is not none %}
+        {% set has2 = v2 is not none %}
+        {% if has1 and has2 %}
+          {% if v1 == v2 %}
+            {% set winner = 0 %}
+          {% elif lower_is_better %}
+            {% set winner = 1 if v1 < v2 else 2 %}
+          {% else %}
+            {% set winner = 1 if v1 > v2 else 2 %}
+          {% endif %}
+        {% elif has1 %}
+          {% set winner = 1 %}
+        {% elif has2 %}
+          {% set winner = 2 %}
+        {% else %}
+          {% set winner = 0 %}
+        {% endif %}
+        {% set v1_disp = (prefix ~ v1 ~ suffix) if has1 else 'NR' %}
+        {% set v2_disp = (prefix ~ v2 ~ suffix) if has2 else 'NR' %}
         <div class="stat-row">
             <div class="flex-1 text-right pr-4">
-                <span class="num text-lg font-semibold {% if t1_better %}text-good{% else %}text-muted{% endif %}">{{ v1 }}{{ format }}</span>
-                {% if t1_better %}<i class="bi bi-check-circle-fill check ml-2"></i>{% endif %}
+                <span class="num text-lg font-semibold {% if winner == 1 %}text-good{% else %}text-muted{% endif %}">{{ v1_disp }}</span>
+                {% if winner == 1 %}<i class="bi bi-check-circle-fill check ml-2"></i>{% endif %}
             </div>
             <div class="w-32 text-center text-xs uppercase tracking-wider text-muted">{{ label }}</div>
             <div class="flex-1 pl-4">
-                {% if not t1_better %}<i class="bi bi-check-circle-fill check mr-2"></i>{% endif %}
-                <span class="num text-lg font-semibold {% if not t1_better %}text-good{% else %}text-muted{% endif %}">{{ v2 }}{{ format }}</span>
+                {% if winner == 2 %}<i class="bi bi-check-circle-fill check mr-2"></i>{% endif %}
+                <span class="num text-lg font-semibold {% if winner == 2 %}text-good{% else %}text-muted{% endif %}">{{ v2_disp }}</span>
             </div>
         </div>
         {% endmacro %}
@@ -239,36 +264,33 @@
         </div>
 
         {{ stat_row('World Rank',
-            '#' + (result.team1.data.world_rank|string if result.team1.data.world_rank else 'NR'),
-            '#' + (result.team2.data.world_rank|string if result.team2.data.world_rank else 'NR'),
-            result.team1.name, result.team2.name) }}
+            result.team1.data.world_rank,
+            result.team2.data.world_rank,
+            prefix='#', lower_is_better=true) }}
 
         {{ stat_row('ELO',
-            "%.0f"|format(result.team1.data.elo),
-            "%.0f"|format(result.team2.data.elo),
-            result.team1.name, result.team2.name) }}
+            result.team1.data.elo|round|int,
+            result.team2.data.elo|round|int) }}
 
         {% if result.team1.data.avg_player_rating and result.team2.data.avg_player_rating %}
         {{ stat_row('Avg Rating',
-            "%.2f"|format(result.team1.data.avg_player_rating),
-            "%.2f"|format(result.team2.data.avg_player_rating),
-            result.team1.name, result.team2.name) }}
+            result.team1.data.avg_player_rating|round(2),
+            result.team2.data.avg_player_rating|round(2)) }}
         {% endif %}
 
         {{ stat_row('Form (W%)',
-            "%.0f"|format(result.team1.data.weighted_form * 100),
-            "%.0f"|format(result.team2.data.weighted_form * 100),
-            result.team1.name, result.team2.name, '%') }}
+            (result.team1.data.weighted_form * 100)|round|int,
+            (result.team2.data.weighted_form * 100)|round|int,
+            suffix='%') }}
 
         {{ stat_row('Wins',
             result.team1.data.wins,
-            result.team2.data.wins,
-            result.team1.name, result.team2.name) }}
+            result.team2.data.wins) }}
 
         {{ stat_row('Stability',
-            "%.0f"|format(result.team1.data.roster_stability * 100),
-            "%.0f"|format(result.team2.data.roster_stability * 100),
-            result.team1.name, result.team2.name, '%') }}
+            (result.team1.data.roster_stability * 100)|round|int,
+            (result.team2.data.roster_stability * 100)|round|int,
+            suffix='%') }}
 
         <!-- Form letters -->
         <div class="stat-row">
