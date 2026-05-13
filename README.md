@@ -16,13 +16,38 @@ The app scrapes live data from HLTV (rankings, results, rosters, map pools, mult
 
 ## Screenshots
 
-| Dashboard | Predict Page |
-|-----------|--------------|
-| ![Dashboard](screenshots/dashboard.png) | ![Predict](screenshots/predict.png) |
+### Dashboard — today's top-tier matches, model stats, value bets sidebar
+![Dashboard](screenshots/dashboard.png)
 
-| Live Multi-Book Odds | Value Bets |
-|---------------------|------------|
-| ![Odds](screenshots/odds.png) | ![Value bets](screenshots/value_bets.png) |
+### Predict page — match hero, calibrated win probabilities, top books at a glance
+![Predict result](screenshots/predict.png)
+
+### Live bookmaker odds — every book scraped from HLTV's widget with EV per side
+![Live odds](screenshots/odds.png)
+
+### Head-to-head stat comparison — green check on the team with the advantage per stat
+![Head-to-head](screenshots/head_to_head.png)
+
+### Score probabilities + factor breakdown + suggested bets
+![Probabilities and why](screenshots/probabilities.png)
+
+### Key players — roster ratings color-coded by strength
+![Key players](screenshots/key_players.png)
+
+### Value Bets page — only matchups where model disagrees with the bookmaker by 5%+
+![Value bets](screenshots/value_bets.png)
+
+### Rankings — HLTV world ranking and our ELO ranking side by side
+![Rankings](screenshots/rankings.png)
+
+### Teams — sortable team list with current form and win rate
+![Teams](screenshots/teams.png)
+
+### Player stats — full league player table, sortable by rating / ADR / KAST
+![Player stats](screenshots/players.png)
+
+### Empty predict form — clean input for ad-hoc matchups
+![Predict form](screenshots/predict_form.png)
 
 ## Features
 
