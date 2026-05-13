@@ -38,10 +38,22 @@ def get_top30_teams(db):
 
 
 def has_top30(team1: str, team2: str, top30: set) -> bool:
-    """True if either team is exactly a top-30 ranked team (case-insensitive).
-    Uses exact match — substring matching wrongly catches things like
-    'ASTRAL' against 'Astralis' or 'HEROIC Academy' against 'HEROIC'."""
+    """True if EITHER team is in the top 30. Used for listing upcoming matches —
+    we want to show users any game involving a notable team."""
     return (team1 or '').lower() in top30 or (team2 or '').lower() in top30
+
+
+def both_top30(team1: str, team2: str, top30: set) -> bool:
+    """True only when BOTH teams are in the top 30. Used for value-bet detection.
+
+    The model has no real data on unranked teams (no ELO record, no form, no
+    map pool) → it defaults to ~50/50 against ranked opponents, which then
+    multiplies with huge underdog decimal odds to produce nonsense EV figures
+    (e.g. picking 'Fisher College over G2' at +800% EV). Only trust the model
+    when both teams are well-represented in our DB."""
+    t1 = (team1 or '').lower()
+    t2 = (team2 or '').lower()
+    return t1 in top30 and t2 in top30
 
 
 def tier_badge_class(tier: str) -> str:
@@ -106,9 +118,13 @@ def dashboard():
     ).fetchall()
     results = [{**dict(r), 'tier_class': tier_badge_class(r['event_tier'])} for r in results_raw]
 
-    # Top value bets: upcoming top-tier with bookmaker odds, model disagrees > 10%
+    # Top value bets: only flag when BOTH teams are top-30 — model can't be
+    # trusted against unknown opponents (it defaults to ~50/50, producing
+    # nonsense EV against huge underdog odds).
     value_bets = []
     for m in upcoming[:10]:
+        if not both_top30(m['team1'], m['team2'], top30):
+            continue
         odds = db.execute('''
             SELECT team1_odds, team2_odds FROM betting_odds
             WHERE (team1 LIKE ? AND team2 LIKE ?) OR (team1 LIKE ? AND team2 LIKE ?)
@@ -121,16 +137,26 @@ def dashboard():
             pred = run_prediction(m['team1'], m['team2'], 'bo3')
             imp1 = (1 / odds['team1_odds']) * 100
             diff = pred['team1']['prob'] - imp1
-            if abs(diff) >= 10:
-                pick = m['team1'] if diff > 0 else m['team2']
-                value_bets.append({
-                    'team1': m['team1'], 'team2': m['team2'],
-                    'event': m['event'], 'tier': m['tier'],
-                    'tier_class': m['tier_class'],
-                    'pick': pick, 'edge': abs(diff),
-                    'model_prob': pred['team1']['prob'] if diff > 0 else pred['team2']['prob'],
-                    'book_prob': imp1 if diff > 0 else 100 - imp1,
-                })
+            edge = abs(diff)
+            # Reject unrealistic edges (>25% means model is wrong, not real value)
+            if not (10 <= edge <= 25):
+                if len(value_bets) >= 5:
+                    break
+                continue
+            # Don't pick extreme underdogs (decimal odds > 6.0)
+            pick_team1 = diff > 0
+            pick_odds = odds['team1_odds'] if pick_team1 else odds['team2_odds']
+            if pick_odds > 6.0:
+                continue
+            pick = m['team1'] if pick_team1 else m['team2']
+            value_bets.append({
+                'team1': m['team1'], 'team2': m['team2'],
+                'event': m['event'], 'tier': m['tier'],
+                'tier_class': m['tier_class'],
+                'pick': pick, 'edge': edge,
+                'model_prob': pred['team1']['prob'] if pick_team1 else pred['team2']['prob'],
+                'book_prob': imp1 if pick_team1 else 100 - imp1,
+            })
             if len(value_bets) >= 5:
                 break
         except Exception:
@@ -971,7 +997,10 @@ def value_bets():
         tier = classify_event(m['event'] or '')
         if tier not in TOP_TIERS:
             continue
-        if not has_top30(m['team1'], m['team2'], top30):
+        # Require BOTH teams in top-30 — model can't be trusted on unknown
+        # opponents. The 50/50 default produces fake "value" against huge
+        # underdog odds. See both_top30() docstring.
+        if not both_top30(m['team1'], m['team2'], top30):
             continue
         odds = db.execute('''
             SELECT team1_odds, team2_odds, bookmaker FROM betting_odds
@@ -988,12 +1017,22 @@ def value_bets():
         imp1 = (1 / odds['team1_odds']) * 100
         imp2 = (1 / odds['team2_odds']) * 100
         diff1 = pred['team1']['prob'] - imp1
-        if abs(diff1) < 5:
-            continue
-        pick = m['team1'] if diff1 > 0 else m['team2']
         edge = abs(diff1)
+        # Sanity bounds:
+        #   < 5%  → not a real edge
+        #   > 25% → model is broken on this matchup, not a real opportunity
+        if edge < 5 or edge > 25:
+            continue
+        # Don't pick the side with decimal odds > 6.0 — these are extreme
+        # underdogs where the bookmaker is correctly tagging them as 17%+
+        # losing teams, and "value" here is almost always model error.
+        pick_team1 = diff1 > 0
+        pick_odds = odds['team1_odds'] if pick_team1 else odds['team2_odds']
+        if pick_odds > 6.0:
+            continue
+        pick = m['team1'] if pick_team1 else m['team2']
         # Expected value: model_prob * decimal_odds - 1
-        if diff1 > 0:
+        if pick_team1:
             ev = (pred['team1']['prob'] / 100) * odds['team1_odds'] - 1
             book_p = imp1
             model_p = pred['team1']['prob']
@@ -1003,6 +1042,9 @@ def value_bets():
             book_p = imp2
             model_p = pred['team2']['prob']
             decimal_odd = odds['team2_odds']
+        # Cap displayed EV at 100% — anything bigger is model error, not edge
+        if ev * 100 > 100:
+            continue
         bets.append({
             'team1': m['team1'], 'team2': m['team2'],
             'event': m['event'], 'tier': tier,
