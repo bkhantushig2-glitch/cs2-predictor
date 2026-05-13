@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}Value Bets — CS2.PREDICT{% endblock %}
+{% block content %}
+
+<div class="mb-6">
+    <h1 class="text-3xl font-bold tracking-tight flex items-center gap-3">
+        <i class="bi bi-cash-coin text-accent"></i> Value Bets
+    </h1>
+    <p class="text-muted text-sm mt-1">
+        Top-tier upcoming matches where the model disagrees with the bookmaker by 5%+. Sorted by expected value.
+    </p>
+</div>
+
+<div class="card mb-6 p-5 bg-gradient-to-r from-accent/10 to-transparent border-accent/20">
+    <div class="flex items-start gap-3">
+        <i class="bi bi-info-circle text-accent text-xl mt-0.5"></i>
+        <div class="text-sm text-muted">
+            <span class="text-ink font-semibold">How this works:</span>
+            We compare our model's win probability to the bookmaker's implied probability (1 / decimal odds).
+            When the gap exceeds 5%, the bookmaker is offering you a price that doesn't match reality.
+            <span class="text-warn">Always bet responsibly — model is ~75% accurate on top-tier matches.</span>
+        </div>
+    </div>
+</div>
+
+{% if bets %}
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+    {% for b in bets %}
+    <div class="card p-5 hover:border-accent/30 transition">
+        <div class="flex items-start justify-between mb-3">
+            <div>
+                <div class="flex items-center gap-2 mb-1">
+                    <span class="badge {{ b.tier_class }}">{{ b.tier }}</span>
+                    <span class="text-xs text-muted truncate">{{ b.event[:50] }}</span>
+                </div>
+                <div class="text-lg font-bold mt-1">
+                    <a href="/team/{{ b.team1 }}" class="hover:text-accent">{{ b.team1 }}</a>
+                    <span class="text-muted text-sm mx-1">vs</span>
+                    <a href="/team/{{ b.team2 }}" class="hover:text-accent">{{ b.team2 }}</a>
+                </div>
+            </div>
+            <div class="text-right">
+                <div class="text-xs text-muted">Edge</div>
+                <div class="num text-2xl font-bold text-good">+{{ "%.1f"|format(b.edge) }}%</div>
+            </div>
+        </div>
+
+        <div class="rounded-lg p-3 mb-3" style="background: var(--bg); border: 1px solid var(--line);">
+            <div class="text-xs uppercase tracking-wider text-muted mb-1">Pick</div>
+            <div class="text-xl font-bold text-good">{{ b.pick }}</div>
+            <div class="text-xs text-muted mt-0.5">@ {{ "%.2f"|format(b.odds) }} ({{ b.bookmaker }})</div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-2 mb-3">
+            <div class="text-center p-2 rounded" style="background: var(--surface2);">
+                <div class="text-xs text-muted mb-0.5">Model</div>
+                <div class="num font-bold text-accent">{{ "%.0f"|format(b.model_prob) }}%</div>
+            </div>
+            <div class="text-center p-2 rounded" style="background: var(--surface2);">
+                <div class="text-xs text-muted mb-0.5">Bookmaker</div>
+                <div class="num font-bold text-warn">{{ "%.0f"|format(b.book_prob) }}%</div>
+            </div>
+            <div class="text-center p-2 rounded" style="background: var(--surface2);">
+                <div class="text-xs text-muted mb-0.5">Expected Value</div>
+                <div class="num font-bold {% if b.ev > 0 %}text-good{% else %}text-bad{% endif %}">
+                    {% if b.ev > 0 %}+{% endif %}{{ "%.1f"|format(b.ev) }}%
+                </div>
+            </div>
+        </div>
+
+        <div class="flex items-center justify-between text-xs text-muted">
+            <div>
+                {% if b.status == 'LIVE' %}<span class="badge badge-live">LIVE</span>
+                {% else %}<i class="bi bi-clock"></i> {{ b.match_time or 'TBD' }}{% endif %}
+            </div>
+            <a href="/predict?team1={{ b.team1 }}&team2={{ b.team2 }}&format=bo3"
+               class="text-accent hover:underline">Full prediction →</a>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="card p-12 text-center">
+    <i class="bi bi-search text-4xl text-muted mb-3"></i>
+    <h3 class="text-xl font-semibold mb-2">No value bets right now</h3>
+    <p class="text-muted text-sm">
+        We need top-tier upcoming matches with bookmaker odds + at least 5% disagreement with our model.<br>
+        Check back when the next IEM/PGL/ESL Pro event comes up.
+    </p>
+</div>
+{% endif %}
+
+{% endblock %}

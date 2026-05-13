@@ -1,0 +1,546 @@
+{% extends "base.html" %}
+{% block title %}Predict — CS2.PREDICT{% endblock %}
+{% block content %}
+
+<!-- Form -->
+<div class="card mb-6">
+    <div class="card-body">
+        <form method="POST" class="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr_auto_auto] gap-3 items-end">
+            <div>
+                <label class="block text-xs uppercase tracking-wider text-muted mb-1">Team 1</label>
+                <select name="team1" class="form-input" required>
+                    <option value="">Select team...</option>
+                    {% for t in teams %}
+                    <option value="{{ t }}" {% if result and result.team1.name == t %}selected{% endif %}>{{ t }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="text-2xl text-muted font-bold pb-2 hidden md:block">VS</div>
+            <div>
+                <label class="block text-xs uppercase tracking-wider text-muted mb-1">Team 2</label>
+                <select name="team2" class="form-input" required>
+                    <option value="">Select team...</option>
+                    {% for t in teams %}
+                    <option value="{{ t }}" {% if result and result.team2.name == t %}selected{% endif %}>{{ t }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs uppercase tracking-wider text-muted mb-1">Format</label>
+                <select name="format" class="form-input">
+                    <option value="bo1" {% if result and result.format == 'BO1' %}selected{% endif %}>BO1</option>
+                    <option value="bo3" {% if not result or result.format == 'BO3' %}selected{% endif %}>BO3</option>
+                    <option value="bo5" {% if result and result.format == 'BO5' %}selected{% endif %}>BO5</option>
+                </select>
+            </div>
+            <button type="submit" class="btn-accent h-[42px]"><i class="bi bi-lightning-fill"></i> Predict</button>
+        </form>
+    </div>
+</div>
+
+{% if result %}
+
+<!-- Linemate-style hero card -->
+<div class="card mb-6 overflow-hidden hero-card">
+    <div class="hero-inner">
+        <div class="flex items-center justify-between mb-2">
+            <span class="badge badge-tier1">{{ result.format }}</span>
+            <div class="text-xs" style="color: var(--dim);">
+                <i class="bi bi-shield-check"></i> Calibrated · top-tier model
+            </div>
+        </div>
+
+        <!-- Big team names -->
+        <div class="grid grid-cols-[1fr_auto_1fr] items-center gap-4 mb-6">
+            <div class="text-right">
+                <div class="text-xs mb-1" style="color: var(--dim);">#{{ result.team1.data.world_rank or '?' }} · {{ "%.0f"|format(result.team1.data.elo) }} ELO</div>
+                <h2 class="text-3xl md:text-5xl font-extrabold tracking-tight" style="color: var(--t1);">
+                    <a href="/team/{{ result.team1.name }}" class="hover:underline" style="color: inherit;">{{ result.team1.name }}</a>
+                </h2>
+            </div>
+            <div class="text-2xl font-bold px-2" style="color: var(--dim);">VS</div>
+            <div class="text-left">
+                <div class="text-xs mb-1" style="color: var(--dim);">#{{ result.team2.data.world_rank or '?' }} · {{ "%.0f"|format(result.team2.data.elo) }} ELO</div>
+                <h2 class="text-3xl md:text-5xl font-extrabold tracking-tight" style="color: var(--t2);">
+                    <a href="/team/{{ result.team2.name }}" class="hover:underline" style="color: inherit;">{{ result.team2.name }}</a>
+                </h2>
+            </div>
+        </div>
+
+        <!-- Probability bar -->
+        <div class="prediction-bar mb-3">
+            <div class="t1" style="width: {{ result.team1.prob|int }}%;">
+                <span class="num text-lg">{{ "%.0f"|format(result.team1.prob) }}%</span>
+            </div>
+            <div class="t2" style="width: {{ result.team2.prob|int }}%;">
+                <span class="num text-lg">{{ "%.0f"|format(result.team2.prob) }}%</span>
+            </div>
+        </div>
+
+        <!-- Verdict -->
+        <div class="flex items-center justify-center gap-3 mt-4">
+            <i class="bi bi-trophy-fill text-accent text-xl"></i>
+            <span class="text-2xl font-bold">{{ result.winner }}</span>
+            <span class="badge {% if result.confidence >= 70 %}badge-good{% elif result.confidence >= 60 %}badge-tier1{% else %}badge-quali{% endif %}">
+                {{ result.verdict }}
+            </span>
+        </div>
+
+        {% if result.most_likely_score %}
+        <div class="text-center mt-3 text-muted text-sm">
+            Most likely score: <span class="num font-bold text-warn">{{ result.most_likely_score }}</span>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Multi-book odds summary footer -->
+    {% if result.books %}
+    <div class="border-t p-5" style="background: var(--bg); border-color: var(--line);">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center gap-4">
+                <div>
+                    <div class="text-xs" style="color: var(--dim);">Our Model</div>
+                    <div class="num font-bold text-accent">{{ "%.0f"|format(result.team1.prob) }}% / {{ "%.0f"|format(result.team2.prob) }}%</div>
+                </div>
+                <div class="text-2xl" style="color: var(--dim);">→</div>
+                <div>
+                    <div class="text-xs" style="color: var(--dim);">{{ result.books|length }} bookmaker{{ 's' if result.books|length != 1 else '' }} (best EV first)</div>
+                    <div class="num font-bold text-warn">{{ "%.0f"|format(result.books[0].t1_implied) }}% / {{ "%.0f"|format(result.books[0].t2_implied) }}% <span class="text-xs ml-1" style="color: var(--dim);">{{ result.books[0].bookmaker }}</span></div>
+                </div>
+            </div>
+            <button onclick="refreshOdds()" class="btn btn-ghost btn-sm" id="odds-refresh-btn">
+                <i class="bi bi-arrow-repeat"></i> Refresh odds
+            </button>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Multi-book odds table -->
+{% if result.books %}
+<div class="card mb-6">
+    <div class="card-header" style="display: flex; justify-content: space-between;">
+        <span><i class="bi bi-cash-coin text-accent"></i> Live Bookmaker Odds <span class="chip ml-2">{{ result.books|length }} books</span></span>
+        <span class="text-xs" style="color: var(--dim);">Last updated: <span class="num">{{ result.books[0].fetched_at[:16].replace('T',' ') }}</span></span>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="table-clean">
+            <thead>
+                <tr>
+                    <th>Bookmaker</th>
+                    <th class="text-right">{{ result.team1.name }}</th>
+                    <th class="text-right">{{ result.team2.name }}</th>
+                    <th class="text-right">Implied %</th>
+                    <th class="text-right">Edge ({{ result.winner }})</th>
+                    <th class="text-right">EV @ best side</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for b in result.books %}
+                {% set winner_is_t1 = result.team1.prob > result.team2.prob %}
+                {% set edge = b.edge_t1 if winner_is_t1 else b.edge_t2 %}
+                {% set ev = b.ev_t1 if winner_is_t1 else b.ev_t2 %}
+                <tr>
+                    <td class="fw-bold">{{ b.bookmaker }}</td>
+                    <td class="text-right num">
+                        {{ b.t1_odds }}
+                        {% if b.best_t1 %}<span class="badge badge-good ml-1">BEST</span>{% endif %}
+                    </td>
+                    <td class="text-right num">
+                        {{ b.t2_odds }}
+                        {% if b.best_t2 %}<span class="badge badge-good ml-1">BEST</span>{% endif %}
+                    </td>
+                    <td class="text-right num" style="color: var(--dim);">{{ b.t1_implied }}% / {{ b.t2_implied }}%</td>
+                    <td class="text-right num" style="color: {% if edge > 0 %}var(--good){% elif edge < 0 %}var(--bad){% else %}var(--dim){% endif %}; font-weight: 600;">
+                        {% if edge > 0 %}+{% endif %}{{ edge }}%
+                    </td>
+                    <td class="text-right num" style="color: {% if ev > 0 %}var(--good){% elif ev < 0 %}var(--bad){% else %}var(--dim){% endif %}; font-weight: 700;">
+                        {% if ev > 0 %}+{% endif %}{{ ev }}%
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="p-4 text-xs" style="border-top: 1px solid var(--line); color: var(--dim);">
+        <i class="bi bi-info-circle"></i>
+        <strong style="color: var(--ink2);">Edge</strong> = model probability − bookmaker implied probability.
+        <strong style="color: var(--ink2);">EV</strong> = expected value if you bet on {{ result.winner }} at this book.
+        Positive EV = the book is offering you a price better than what the model thinks is fair.
+    </div>
+</div>
+{% endif %}
+
+<!-- Player prop verification deep-links -->
+{% if result.deep_links %}
+<div class="card mb-6">
+    <div class="card-header"><i class="bi bi-crosshair text-accent"></i> Verify Player Props on Live Books</div>
+    <div class="card-body">
+        <p class="text-sm mb-3" style="color: var(--dim);">
+            We don't pull player kill props live (anti-bot walls). Click a book to find this match in their app and check the actual kill / headshot / map handicap lines.
+        </p>
+        <div class="flex flex-wrap gap-2">
+            {% for link in result.deep_links %}
+            <a href="{{ link.url }}" target="_blank" rel="noopener" class="btn btn-ghost">
+                <i class="bi bi-box-arrow-up-right"></i>
+                {{ link.bookmaker }}
+                {% if link.kind == 'aggregator' %}<span class="chip ml-1" style="font-size:0.65rem;">aggregator</span>{% endif %}
+            </a>
+            {% endfor %}
+        </div>
+        {% if result.stored_props %}
+        <div class="mt-4 pt-3" style="border-top: 1px solid var(--line);">
+            <div class="text-xs mb-2" style="color: var(--dim);">Cached props from past scrapes:</div>
+            <table class="table-clean">
+                <thead><tr><th>Player</th><th>Market</th><th class="text-right">Line</th><th class="text-right">Over</th><th class="text-right">Under</th><th>Book</th></tr></thead>
+                <tbody>
+                    {% for p in result.stored_props %}
+                    <tr>
+                        <td class="fw-bold">{{ p.player }}</td>
+                        <td>{{ p.market }}</td>
+                        <td class="text-right num">{{ p.line }}</td>
+                        <td class="text-right num text-good">{{ p.over_odds or '—' }}</td>
+                        <td class="text-right num text-bad">{{ p.under_odds or '—' }}</td>
+                        <td>{{ p.bookmaker }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Stat comparison (Linemate signature) -->
+<div class="card mb-6">
+    <div class="card-header"><i class="bi bi-diagram-3 text-accent"></i> Head-to-Head Stat Comparison</div>
+    <div class="p-5">
+        {% macro stat_row(label, v1, v2, t1_name, t2_name, format='', higher_better=true) %}
+        {% set t1_better = (v1 > v2) if higher_better else (v1 < v2) %}
+        <div class="stat-row">
+            <div class="flex-1 text-right pr-4">
+                <span class="num text-lg font-semibold {% if t1_better %}text-good{% else %}text-muted{% endif %}">{{ v1 }}{{ format }}</span>
+                {% if t1_better %}<i class="bi bi-check-circle-fill check ml-2"></i>{% endif %}
+            </div>
+            <div class="w-32 text-center text-xs uppercase tracking-wider text-muted">{{ label }}</div>
+            <div class="flex-1 pl-4">
+                {% if not t1_better %}<i class="bi bi-check-circle-fill check mr-2"></i>{% endif %}
+                <span class="num text-lg font-semibold {% if not t1_better %}text-good{% else %}text-muted{% endif %}">{{ v2 }}{{ format }}</span>
+            </div>
+        </div>
+        {% endmacro %}
+
+        <!-- Team labels -->
+        <div class="flex items-center mb-3 pb-3 border-b border-line">
+            <div class="flex-1 text-right pr-4 font-bold text-t1 text-lg">{{ result.team1.name }}</div>
+            <div class="w-32"></div>
+            <div class="flex-1 pl-4 font-bold text-t2 text-lg">{{ result.team2.name }}</div>
+        </div>
+
+        {{ stat_row('World Rank',
+            '#' + (result.team1.data.world_rank|string if result.team1.data.world_rank else 'NR'),
+            '#' + (result.team2.data.world_rank|string if result.team2.data.world_rank else 'NR'),
+            result.team1.name, result.team2.name) }}
+
+        {{ stat_row('ELO',
+            "%.0f"|format(result.team1.data.elo),
+            "%.0f"|format(result.team2.data.elo),
+            result.team1.name, result.team2.name) }}
+
+        {% if result.team1.data.avg_player_rating and result.team2.data.avg_player_rating %}
+        {{ stat_row('Avg Rating',
+            "%.2f"|format(result.team1.data.avg_player_rating),
+            "%.2f"|format(result.team2.data.avg_player_rating),
+            result.team1.name, result.team2.name) }}
+        {% endif %}
+
+        {{ stat_row('Form (W%)',
+            "%.0f"|format(result.team1.data.weighted_form * 100),
+            "%.0f"|format(result.team2.data.weighted_form * 100),
+            result.team1.name, result.team2.name, '%') }}
+
+        {{ stat_row('Wins',
+            result.team1.data.wins,
+            result.team2.data.wins,
+            result.team1.name, result.team2.name) }}
+
+        {{ stat_row('Stability',
+            "%.0f"|format(result.team1.data.roster_stability * 100),
+            "%.0f"|format(result.team2.data.roster_stability * 100),
+            result.team1.name, result.team2.name, '%') }}
+
+        <!-- Form letters -->
+        <div class="stat-row">
+            <div class="flex-1 text-right pr-4">
+                {% for l in result.team1.data.recent_form[:8] %}
+                <span class="form-letter form-{{ l }}">{{ l }}</span>
+                {% endfor %}
+            </div>
+            <div class="w-32 text-center text-xs uppercase tracking-wider text-muted">Last 8</div>
+            <div class="flex-1 pl-4">
+                {% for l in result.team2.data.recent_form[:8] %}
+                <span class="form-letter form-{{ l }}">{{ l }}</span>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Score lines + factors side by side -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+    {% if result.score_probs.score_lines %}
+    <div class="card">
+        <div class="card-header flex items-center justify-between">
+            <span><i class="bi bi-bar-chart-fill text-accent"></i> Score Probabilities</span>
+            <span class="badge badge-tier1 num">Most likely: {{ result.most_likely_score }}</span>
+        </div>
+        <div class="card-body space-y-2">
+            {% for score, pct in result.score_probs.score_lines.items() %}
+            <div class="flex items-center gap-3">
+                <span class="w-12 num font-bold {% if score == result.most_likely_score %}text-warn{% else %}text-muted{% endif %}">{{ score }}</span>
+                <div class="flex-1 progress-track">
+                    <div class="h-full rounded"
+                         style="width: {{ pct|int }}%; background: {% if score == result.most_likely_score %}var(--warn){% else %}var(--line2){% endif %};"></div>
+                </div>
+                <span class="w-14 text-right num text-sm {% if score == result.most_likely_score %}text-warn font-bold{% else %}text-muted{% endif %}">
+                    {{ "%.1f"|format(pct) }}%
+                </span>
+            </div>
+            {% endfor %}
+
+            {% if result.map_insights.team1_win_1_map and result.map_insights.team2_win_1_map %}
+            <div class="grid grid-cols-2 gap-3 mt-4 pt-3 border-t border-line">
+                <div class="text-center">
+                    <div class="text-xs text-muted">{{ result.team1.name }} wins ≥1 map</div>
+                    <div class="num text-lg font-bold text-t1">{{ result.map_insights.team1_win_1_map }}%</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-xs text-muted">{{ result.team2.name }} wins ≥1 map</div>
+                    <div class="num text-lg font-bold text-t2">{{ result.map_insights.team2_win_1_map }}%</div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="card">
+        <div class="card-header"><i class="bi bi-sliders text-accent"></i> Why This Prediction</div>
+        <div class="card-body space-y-3">
+            {% for f in result.factors %}
+            <div>
+                <div class="flex items-center justify-between mb-1">
+                    <span class="text-sm font-semibold">
+                        <i class="bi bi-{{ f.icon }} text-accent"></i> {{ f.name }}
+                    </span>
+                    <span class="text-xs num text-muted">+{{ "%.1f"|format(f.impact) }}</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="flex-1 progress-track">
+                        <div class="progress-fill" style="width: {{ (f.impact / 15 * 100)|int }}%"></div>
+                    </div>
+                    <span class="text-xs font-bold {% if f.advantage == result.team1.name %}text-t1{% else %}text-t2{% endif %} w-24 text-right truncate">
+                        {{ f.advantage }}
+                    </span>
+                </div>
+                <div class="text-xs text-muted mt-1">{{ f.detail }}</div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Safe bets -->
+{% if result.safe_bets %}
+<div class="card mb-6">
+    <div class="card-header"><i class="bi bi-shield-fill-check text-good"></i> Suggested Bets <span class="chip ml-2">market-realistic lines</span></div>
+    <div class="card-body space-y-3">
+        {% for bet in result.safe_bets %}
+        <div class="flex items-center gap-4 p-3 rounded-lg" style="background: rgba(63,185,80,0.06); border: 1px solid rgba(63,185,80,0.18);">
+            <span class="badge {% if bet.tier == 'safe' %}badge-good{% else %}badge-tier1{% endif %} w-20 text-center">
+                {% if bet.tier == 'safe' %}SAFE{% else %}MOD{% endif %}
+            </span>
+            <div class="flex-1">
+                <div class="font-semibold">
+                    <i class="bi bi-{{ bet.icon }} text-accent mr-1"></i>{{ bet.label }}
+                </div>
+                <div class="text-xs text-muted">{{ bet.reason }}</div>
+            </div>
+            {% if bet.prob %}
+            <div class="num text-lg font-bold {% if bet.prob >= 75 %}text-good{% elif bet.prob >= 60 %}text-warn{% else %}text-muted{% endif %}">
+                {{ "%.0f"|format(bet.prob) }}%
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+        <div class="text-xs text-muted pt-2 border-t border-line">
+            <i class="bi bi-info-circle"></i> Model-based suggestions, not guarantees. Always bet responsibly.
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- H2H + Players -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    {% if result.h2h.matches %}
+    <div class="card">
+        <div class="card-header"><i class="bi bi-repeat text-accent"></i> Head-to-Head ({{ result.h2h.t1_wins }}-{{ result.h2h.t2_wins }})</div>
+        <div class="overflow-x-auto">
+            <table class="table-clean">
+                <tbody>
+                    {% for m in result.h2h.matches[:5] %}
+                    <tr>
+                        <td class="text-right {% if m[4] == m[0] %}text-good font-semibold{% else %}text-muted{% endif %}">{{ m[0] }}</td>
+                        <td class="text-center num font-bold w-20">{{ m[1] }}-{{ m[2] }}</td>
+                        <td class="{% if m[4] == m[3] %}text-good font-semibold{% else %}text-muted{% endif %}">{{ m[3] }}</td>
+                        <td class="text-right text-xs text-muted">{{ m[5][:25] if m[5] else '' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="card">
+        <div class="card-header"><i class="bi bi-people-fill text-accent"></i> Key Players</div>
+        <div class="overflow-x-auto">
+            <table class="table-clean">
+                <thead>
+                    <tr><th colspan="2" class="text-t1">{{ result.team1.name }}</th><th class="text-right">Rating</th></tr>
+                </thead>
+                <tbody>
+                    {% for p in result.team1.data.players %}
+                    <tr>
+                        <td colspan="2"><a href="/player/{{ p.name }}" class="team-link">{{ p.name }}</a></td>
+                        <td class="text-right num font-semibold {% if p.rating and p.rating > 1.15 %}text-good{% endif %}">
+                            {{ "%.2f"|format(p.rating) if p.rating else '—' }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    <tr class="border-t border-line"><td colspan="3" class="pt-3 font-bold text-t2">{{ result.team2.name }}</td></tr>
+                    {% for p in result.team2.data.players %}
+                    <tr>
+                        <td colspan="2"><a href="/player/{{ p.name }}" class="team-link">{{ p.name }}</a></td>
+                        <td class="text-right num font-semibold {% if p.rating and p.rating > 1.15 %}text-good{% endif %}">
+                            {{ "%.2f"|format(p.rating) if p.rating else '—' }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Map picker -->
+<div class="card mt-6">
+    <div class="card-header"><i class="bi bi-map text-accent"></i> Map Pick Analysis</div>
+    <div class="card-body">
+        <p class="text-muted text-sm mb-3">Select picked maps to see how they shift the prediction.</p>
+        <div class="flex flex-wrap gap-2 mb-4 justify-center" id="map-btns">
+            {% for map in ['Nuke', 'Inferno', 'Mirage', 'Anubis', 'Ancient', 'Dust2', 'Overpass'] %}
+            <button class="map-btn" onclick="toggleMap(this)">{{ map }}</button>
+            {% endfor %}
+        </div>
+        <div class="flex justify-center gap-2 mb-4">
+            <select class="form-input w-auto" id="map-fmt">
+                <option value="bo1" {% if result.format == 'BO1' %}selected{% endif %}>BO1</option>
+                <option value="bo3" {% if not result or result.format == 'BO3' %}selected{% endif %}>BO3</option>
+                <option value="bo5" {% if result.format == 'BO5' %}selected{% endif %}>BO5</option>
+            </select>
+            <button class="btn-accent" onclick="recalculate()"><i class="bi bi-arrow-repeat"></i> Recalculate</button>
+        </div>
+        <div id="map-result"></div>
+    </div>
+</div>
+
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+{% if result %}
+<style>
+    .map-btn { border: 1px solid rgba(255,255,255,0.08); background: #0a0e1a; color: #94a3b8; border-radius: 0.5rem; padding: 0.5rem 1rem; cursor: pointer; font-size: 0.875rem; font-weight: 600; transition: all 0.15s; }
+    .map-btn:hover { border-color: #f97316; color: #e2e8f0; }
+    .map-btn.active { background: #f97316; color: #fff; border-color: #f97316; }
+</style>
+<script>
+const TEAM1 = {{ result.team1.name | tojson }};
+const TEAM2 = {{ result.team2.name | tojson }};
+
+function toggleMap(btn) { btn.classList.toggle('active'); }
+
+async function refreshOdds() {
+    const btn = document.getElementById('odds-refresh-btn');
+    if (!btn) return;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-arrow-repeat"></i> Fetching…';
+    try {
+        const res = await fetch(`/api/refresh-odds?team1=${encodeURIComponent(TEAM1)}&team2=${encodeURIComponent(TEAM2)}`);
+        const d = await res.json();
+        if (d.ok) {
+            btn.innerHTML = `<i class="bi bi-check-circle"></i> ${d.books} books — reloading`;
+            setTimeout(() => location.reload(), 700);
+        } else {
+            btn.innerHTML = `<i class="bi bi-exclamation-triangle"></i> ${d.reason || 'failed'}`;
+            setTimeout(() => { btn.disabled = false; btn.innerHTML = '<i class="bi bi-arrow-repeat"></i> Refresh odds'; }, 4000);
+        }
+    } catch (e) {
+        btn.innerHTML = `<i class="bi bi-x-circle"></i> Network error`;
+        setTimeout(() => { btn.disabled = false; btn.innerHTML = '<i class="bi bi-arrow-repeat"></i> Refresh odds'; }, 4000);
+    }
+}
+
+async function recalculate() {
+    const btns = document.querySelectorAll('#map-btns .map-btn.active');
+    const maps = Array.from(btns).map(b => b.textContent.trim());
+    const fmt = document.getElementById('map-fmt').value;
+    const out = document.getElementById('map-result');
+
+    if (!maps.length) {
+        out.innerHTML = '<p class="text-muted text-center text-sm">Pick at least 1 map</p>';
+        return;
+    }
+
+    out.innerHTML = '<div class="text-center py-4"><i class="bi bi-arrow-repeat text-accent text-xl animate-spin"></i></div>';
+
+    try {
+        const res = await fetch(`/api/predict-maps?team1=${encodeURIComponent(TEAM1)}&team2=${encodeURIComponent(TEAM2)}&maps=${encodeURIComponent(maps.join(','))}&format=${fmt}`);
+        const d = await res.json();
+        const adjColor = d.map_adjustment > 0 ? 'text-good' : d.map_adjustment < 0 ? 'text-bad' : 'text-muted';
+        const adjSign = d.map_adjustment > 0 ? '+' : '';
+
+        const rows = d.map_breakdown.map(mb =>
+            `<tr>
+                <td class="font-semibold">${mb.map}</td>
+                <td class="num text-t1">${mb.team1_wr}%</td>
+                <td class="num text-t2">${mb.team2_wr}%</td>
+                <td class="num font-semibold ${mb.diff > 0 ? 'text-good' : mb.diff < 0 ? 'text-bad' : 'text-muted'}">
+                    ${mb.diff > 0 ? '+' : ''}${mb.diff}%
+                </td>
+            </tr>`
+        ).join('');
+
+        out.innerHTML = `
+            <div class="prediction-bar mb-3" style="height: 48px;">
+                <div class="t1" style="width: ${d.team1.prob}%">${d.team1.name} ${d.team1.prob}%</div>
+                <div class="t2" style="width: ${d.team2.prob}%">${d.team2.prob}% ${d.team2.name}</div>
+            </div>
+            <div class="text-center mb-3">
+                <span class="text-accent font-bold text-lg">${d.winner}</span>
+                <span class="badge badge-tier1 ml-2">Map shift: <span class="${adjColor}">${adjSign}${d.map_adjustment}%</span></span>
+            </div>
+            <table class="table-clean mt-3">
+                <thead><tr><th>Map</th><th class="text-t1">${d.team1.name}</th><th class="text-t2">${d.team2.name}</th><th>Diff</th></tr></thead>
+                <tbody>${rows}</tbody>
+            </table>`;
+    } catch(e) {
+        out.innerHTML = '<p class="text-bad text-center">Error calculating</p>';
+    }
+}
+</script>
+{% endif %}
+{% endblock %}

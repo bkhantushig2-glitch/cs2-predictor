@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Rankings - CS2 Predictor{% endblock %}
+{% block content %}
+
+<h3 class="mb-4"><i class="bi bi-bar-chart"></i> Rankings</h3>
+
+<div class="row g-4">
+    <!-- World Rankings -->
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header"><i class="bi bi-globe"></i> HLTV World Rankings</div>
+            <div class="card-body p-0">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr><th>Rank</th><th>Team</th><th>Points</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for t in world %}
+                        <tr>
+                            <td>
+                                <span class="fw-bold {% if t.world_rank <= 3 %}text-warning{% elif t.world_rank <= 10 %}text-info{% endif %}">
+                                    #{{ t.world_rank }}
+                                </span>
+                            </td>
+                            <td><a href="/team/{{ t.team }}" class="team-link">{{ t.team }}</a></td>
+                            <td class="text-muted">{{ t.points }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ELO Rankings -->
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header"><i class="bi bi-trophy"></i> ELO Rankings</div>
+            <div class="card-body p-0">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr><th>#</th><th>Team</th><th>ELO</th><th>Matches</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for t in elo %}
+                        <tr>
+                            <td>
+                                <span class="fw-bold {% if loop.index <= 3 %}text-warning{% elif loop.index <= 10 %}text-info{% endif %}">
+                                    {{ loop.index }}
+                                </span>
+                            </td>
+                            <td><a href="/team/{{ t.team }}" class="team-link">{{ t.team }}</a></td>
+                            <td>
+                                <span class="{% if t.elo_rating > 1600 %}text-success{% elif t.elo_rating > 1500 %}text-warning{% else %}text-muted{% endif %} fw-bold">
+                                    {{ "%.0f"|format(t.elo_rating) }}
+                                </span>
+                            </td>
+                            <td class="text-muted">{{ t.matches_played }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

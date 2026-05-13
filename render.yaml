@@ -1,0 +1,13 @@
+# Render.com Blueprint — one-click deploy from a connected GitHub repo
+# https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: cs2-predictor
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn --bind 0.0.0.0:$PORT --workers 2 --timeout 60 wsgi:app
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      # Optional: set PANDASCORE_API_KEY in the Render dashboard for backup odds

@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — CS2.PREDICT{% endblock %}
+{% block content %}
+
+<!-- Page header -->
+<div class="flex flex-wrap items-end justify-between gap-4 mb-6">
+    <div>
+        <h1 class="text-3xl md:text-4xl font-extrabold tracking-tight text-ink">Today's Top Matches</h1>
+        <p class="text-dim text-sm mt-1.5">Tier 1 &amp; Tier 2 events only · Model trained on top-tier data</p>
+    </div>
+    <div class="flex gap-2">
+        <a href="/predict" class="btn btn-accent"><i class="bi bi-lightning-fill"></i>New Prediction</a>
+        <a href="/value-bets" class="btn btn-ghost"><i class="bi bi-cash-coin"></i>Value Bets</a>
+    </div>
+</div>
+
+<!-- Stats strip -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+    <div class="stat-card">
+        <div class="stat-label">Teams</div>
+        <div class="stat-num text-ink">{{ team_count }}</div>
+        <div class="stat-trend"><i class="bi bi-shield-fill-check text-good"></i> tracked from HLTV</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Players</div>
+        <div class="stat-num text-ink">{{ player_count }}</div>
+        <div class="stat-trend"><i class="bi bi-person-fill text-dim"></i> with stats</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Top-Tier Matches</div>
+        <div class="stat-num text-accent">{{ match_count }}</div>
+        <div class="stat-trend"><i class="bi bi-funnel-fill text-accent"></i> trained on these</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Model Accuracy</div>
+        <div class="stat-num good">74.6<span class="text-2xl">%</span></div>
+        <div class="stat-trend"><i class="bi bi-graph-up-arrow text-good"></i> Brier 0.22 · ranked-vs-ranked</div>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+    <!-- Upcoming top-tier -->
+    <div class="card lg:col-span-2">
+        <div class="card-header justify-between">
+            <span><i class="bi bi-controller text-accent"></i>Upcoming &amp; Live</span>
+            <span class="chip">{{ upcoming|length }} top-tier match{% if upcoming|length != 1 %}es{% endif %}</span>
+        </div>
+        <div>
+            {% for m in upcoming %}
+            <div class="match-row">
+                <div class="when">
+                    {% if m.status == 'LIVE' %}
+                    <span class="badge badge-live">LIVE</span>
+                    {% else %}
+                    <span class="num">{{ m.match_time or '—' }}</span>
+                    {% endif %}
+                </div>
+                <div class="matchup">
+                    <a href="/team/{{ m.team1 }}" class="t1n team-link truncate">{{ m.team1 }}</a>
+                    <span class="vs">vs</span>
+                    <a href="/team/{{ m.team2 }}" class="t2n team-link truncate">{{ m.team2 }}</a>
+                </div>
+                <span class="badge {{ m.tier_class }}">{{ m.tier }}</span>
+                <div class="event-info truncate">
+                    <i class="bi bi-trophy"></i>
+                    <span class="truncate">{{ m.event[:32] }}</span>
+                </div>
+                <a href="/predict?team1={{ m.team1 }}&team2={{ m.team2 }}&format=bo3"
+                   class="btn btn-ghost btn-sm"
+                   title="Predict this match">
+                   <i class="bi bi-lightning-fill text-accent"></i>
+                </a>
+            </div>
+            {% endfor %}
+            {% if not upcoming %}
+            <div class="p-12 text-center">
+                <div class="text-4xl text-dim2 mb-3"><i class="bi bi-calendar-x"></i></div>
+                <div class="text-ink2 font-semibold mb-1">No top-tier matches in the queue right now</div>
+                <div class="text-sm text-dim">Big events (IEM, PGL, ESL Pro League, BLAST, CCT) will surface here when they go live.</div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Top value bets -->
+    <div class="card">
+        <div class="card-header justify-between">
+            <span><i class="bi bi-cash-coin text-accent"></i>Top Value Bets</span>
+            <a href="/value-bets" class="text-xs font-semibold text-accent hover:underline">All →</a>
+        </div>
+        <div>
+            {% for b in value_bets %}
+            <a href="/predict?team1={{ b.team1 }}&team2={{ b.team2 }}&format=bo3"
+               class="block px-5 py-4 border-b border-line last:border-0 hover:bg-surface2 transition">
+                <div class="flex items-center justify-between mb-1.5">
+                    <span class="text-xs font-semibold text-dim truncate">{{ b.team1 }} vs {{ b.team2 }}</span>
+                    <span class="badge badge-good num">+{{ "%.0f"|format(b.edge) }}%</span>
+                </div>
+                <div class="text-base font-bold text-ink mb-1">
+                    <i class="bi bi-arrow-right-circle-fill text-good text-sm"></i>
+                    {{ b.pick }}
+                </div>
+                <div class="flex items-center justify-between text-xs">
+                    <span class="num text-good">{{ "%.0f"|format(b.model_prob) }}%</span>
+                    <span class="text-dim2">vs book</span>
+                    <span class="num text-warn">{{ "%.0f"|format(b.book_prob) }}%</span>
+                </div>
+            </a>
+            {% endfor %}
+            {% if not value_bets %}
+            <div class="p-8 text-center">
+                <div class="text-3xl text-dim2 mb-3"><i class="bi bi-search"></i></div>
+                <div class="text-ink2 font-semibold mb-1 text-sm">No value bets right now</div>
+                <div class="text-xs text-dim">Need bookmaker odds for upcoming top-tier matches.</div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Recent top-tier results -->
+<div class="card mt-6">
+    <div class="card-header justify-between">
+        <span><i class="bi bi-clock-history text-accent"></i>Recent Top-Tier Results</span>
+        <a href="/matches" class="text-xs font-semibold text-accent hover:underline">All matches →</a>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="table-clean">
+            <thead>
+                <tr>
+                    <th class="w-32">Event</th>
+                    <th class="text-right">Team 1</th>
+                    <th class="w-24 text-center">Score</th>
+                    <th>Team 2</th>
+                    <th class="text-right hidden md:table-cell">Tournament</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for m in results %}
+                <tr>
+                    <td>
+                        <span class="badge {{ m.tier_class }}">{{ m.event_tier }}</span>
+                        {% if m.is_lan %}<span class="badge badge-lan ml-1">LAN</span>{% endif %}
+                    </td>
+                    <td class="text-right">
+                        <a href="/team/{{ m.team1 }}" class="team-link {% if m.winner != m.team1 %}!text-dim{% endif %}">{{ m.team1 }}</a>
+                    </td>
+                    <td class="text-center num font-bold text-base">
+                        <span class="{% if m.score1 > m.score2 %}text-good{% else %}text-dim{% endif %}">{{ m.score1 }}</span>
+                        <span class="text-dim2 mx-1">·</span>
+                        <span class="{% if m.score2 > m.score1 %}text-good{% else %}text-dim{% endif %}">{{ m.score2 }}</span>
+                    </td>
+                    <td>
+                        <a href="/team/{{ m.team2 }}" class="team-link {% if m.winner != m.team2 %}!text-dim{% endif %}">{{ m.team2 }}</a>
+                    </td>
+                    <td class="text-right text-dim text-xs hidden md:table-cell">{{ m.event[:32] }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}

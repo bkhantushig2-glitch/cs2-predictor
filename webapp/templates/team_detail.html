@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+{% block title %}{{ team.team }} - CS2 Predictor{% endblock %}
+{% block content %}
+
+<!-- Team Header -->
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <h2 class="mb-1" style="color: #f97316;">{{ team.team }}</h2>
+                <span class="badge bg-secondary me-2">#{{ team.world_rank }} World</span>
+                <span class="badge bg-secondary">{{ team.points }} pts</span>
+                {% if elo %}<span class="badge bg-info ms-1">{{ "%.0f"|format(elo.elo_rating) }} ELO</span>{% endif %}
+            </div>
+            <div class="col-md-6 text-end">
+                {% if form %}
+                <div class="mb-1">
+                    <span class="hero-stat">{{ "%.0f"|format(form.win_rate * 100) }}%</span>
+                    <span class="text-muted ms-1">win rate</span>
+                </div>
+                <span class="text-success fw-bold">{{ form.wins_last_10 }}W</span>
+                <span class="text-danger fw-bold">{{ form.losses_last_10 }}L</span>
+                <span class="text-muted">last 10</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Roster -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header"><i class="bi bi-people"></i> Roster</div>
+            <div class="card-body p-0">
+                <table class="table mb-0">
+                    <thead>
+                        <tr><th>Player</th><th>Rating</th><th>ADR</th><th>KAST</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for p in players %}
+                        <tr>
+                            <td class="fw-bold">{{ p.name }}</td>
+                            <td><span class="{% if p.rating and p.rating > 1.15 %}text-success{% elif p.rating and p.rating > 1.05 %}text-warning{% endif %}">{{ "%.2f"|format(p.rating) if p.rating else '-' }}</span></td>
+                            <td>{{ "%.1f"|format(p.adr) if p.adr else '-' }}</td>
+                            <td>{{ "%.1f"|format(p.kast) if p.kast else '-' }}{% if p.kast %}%{% endif %}</td>
+                        </tr>
+                        {% endfor %}
+                        {% for p in roster if p not in (players | map(attribute='name') | list) %}
+                        <tr><td class="text-muted">{{ p }}</td><td>-</td><td>-</td><td>-</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Map Pool -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header"><i class="bi bi-map"></i> Map Pool</div>
+            <div class="card-body">
+                {% for m in maps %}
+                <div class="d-flex align-items-center mb-2">
+                    <span style="width: 80px;" class="fw-bold">{{ m.map_name }}</span>
+                    <div class="flex-grow-1 mx-2">
+                        <div class="progress" style="height: 20px;">
+                            <div class="progress-bar map-bar {% if m.win_rate > 0.6 %}bg-success{% elif m.win_rate > 0.45 %}bg-warning{% else %}bg-danger{% endif %}"
+                                 style="width: {{ (m.win_rate * 100)|int }}%">
+                                {{ "%.0f"|format(m.win_rate * 100) }}%
+                            </div>
+                        </div>
+                    </div>
+                    <small class="text-muted">{{ m.times_played }} played</small>
+                </div>
+                {% endfor %}
+                {% if not maps %}
+                <p class="text-muted">No map data available</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Matches -->
+<div class="card mt-4">
+    <div class="card-header"><i class="bi bi-clock-history"></i> Recent Matches</div>
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr><th>Date</th><th class="text-end">Team 1</th><th class="text-center">Score</th><th>Team 2</th><th>Event</th><th>Type</th></tr>
+            </thead>
+            <tbody>
+                {% for m in matches %}
+                <tr>
+                    <td><small class="text-muted">{{ m.match_date }}</small></td>
+                    <td class="text-end">
+                        <span class="{% if m.winner == m.team1 %}text-success fw-bold{% else %}text-muted{% endif %}">
+                            {{ m.team1 }}
+                        </span>
+                    </td>
+                    <td class="text-center fw-bold">{{ m.score1 }} - {{ m.score2 }}</td>
+                    <td>
+                        <span class="{% if m.winner == m.team2 %}text-success fw-bold{% else %}text-muted{% endif %}">
+                            {{ m.team2 }}
+                        </span>
+                    </td>
+                    <td><small class="text-muted">{{ m.event[:30] }}</small></td>
+                    <td>
+                        {% if m.is_lan %}<span class="badge badge-lan">LAN</span>{% endif %}
+                        {% if m.event_tier == 'major' %}<span class="badge badge-major">Major</span>
+                        {% elif m.event_tier == 'tier1' %}<span class="badge badge-tier1">T1</span>
+                        {% elif m.event_tier == 'tier2' %}<span class="badge badge-tier2">T2</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Roster Changes -->
+{% if changes %}
+<div class="card mt-4">
+    <div class="card-header"><i class="bi bi-arrow-left-right"></i> Recent Roster Changes</div>
+    <div class="card-body">
+        {% for ch in changes %}
+        <div class="border-bottom border-secondary py-2">
+            <span class="fw-bold">{{ ch.title }}</span><br>
+            <small class="text-muted">{{ ch.published or ch.fetched_at }}</small>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}

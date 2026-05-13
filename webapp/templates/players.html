@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}Players - CS2 Predictor{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3><i class="bi bi-person"></i> Player Stats</h3>
+    <div>
+        <span class="text-muted me-2">Sort by:</span>
+        <a href="/players?sort=rating" class="btn btn-sm {% if sort == 'rating' %}btn-warning{% else %}btn-outline-secondary{% endif %}">Rating</a>
+        <a href="/players?sort=adr" class="btn btn-sm {% if sort == 'adr' %}btn-warning{% else %}btn-outline-secondary{% endif %}">ADR</a>
+        <a href="/players?sort=kast" class="btn btn-sm {% if sort == 'kast' %}btn-warning{% else %}btn-outline-secondary{% endif %}">KAST</a>
+        <a href="/players?sort=maps" class="btn btn-sm {% if sort == 'maps' %}btn-warning{% else %}btn-outline-secondary{% endif %}">Maps</a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Player</th>
+                    <th>Team</th>
+                    <th>Rating</th>
+                    <th>ADR</th>
+                    <th>KAST</th>
+                    <th>Maps</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in players %}
+                <tr>
+                    <td class="text-muted">{{ loop.index }}</td>
+                    <td class="fw-bold">{{ p.name }}</td>
+                    <td>
+                        {% if p.team %}
+                        <a href="/team/{{ p.team }}" class="team-link">{{ p.team }}</a>
+                        {% else %}-{% endif %}
+                    </td>
+                    <td>
+                        {% if p.rating %}
+                        <span class="{% if p.rating >= 1.20 %}text-success fw-bold{% elif p.rating >= 1.10 %}text-warning{% elif p.rating < 0.95 %}text-danger{% endif %}">
+                            {{ "%.2f"|format(p.rating) }}
+                        </span>
+                        {% else %}-{% endif %}
+                    </td>
+                    <td>
+                        {% if p.adr %}
+                        <span class="{% if p.adr >= 85 %}text-success{% elif p.adr >= 75 %}text-warning{% endif %}">
+                            {{ "%.1f"|format(p.adr) }}
+                        </span>
+                        {% else %}-{% endif %}
+                    </td>
+                    <td>
+                        {% if p.kast %}
+                        <span class="{% if p.kast >= 75 %}text-success{% elif p.kast >= 70 %}text-warning{% endif %}">
+                            {{ "%.1f"|format(p.kast) }}%
+                        </span>
+                        {% else %}-{% endif %}
+                    </td>
+                    <td class="text-muted">{{ p.maps_played or '-' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}

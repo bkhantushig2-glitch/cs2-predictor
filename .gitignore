@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+.env
+
+# Project artifacts
+*.log
+*.pid
+updater.log
+updater_stdout.log
+updater_stderr.log
+updater.pid
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
+
+# Local dev junk
+*.bak
+*.tmp
+predictor_data.json

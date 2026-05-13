@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Teams - CS2 Predictor{% endblock %}
+{% block content %}
+
+<h3 class="mb-4"><i class="bi bi-people"></i> Team Rankings</h3>
+
+<div class="card">
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Rank</th>
+                    <th>Team</th>
+                    <th>Points</th>
+                    <th>ELO</th>
+                    <th>Form (Last 10)</th>
+                    <th>Win Rate</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for team in teams %}
+                <tr>
+                    <td><span class="fw-bold {% if team.world_rank <= 3 %}text-warning{% elif team.world_rank <= 10 %}text-info{% endif %}">#{{ team.world_rank }}</span></td>
+                    <td>
+                        <a href="/team/{{ team.team }}" class="team-link">{{ team.team }}</a>
+                    </td>
+                    <td>{{ team.points }}</td>
+                    <td>
+                        {% if team.elo_rating %}
+                        <span class="{% if team.elo_rating > 1600 %}text-success{% elif team.elo_rating < 1400 %}text-danger{% endif %}">
+                            {{ "%.0f"|format(team.elo_rating) }}
+                        </span>
+                        {% else %}-{% endif %}
+                    </td>
+                    <td>
+                        {% if team.wins_last_10 is not none %}
+                        <span class="text-success">{{ team.wins_last_10 }}W</span>
+                        <span class="text-danger">{{ team.losses_last_10 }}L</span>
+                        {% else %}-{% endif %}
+                    </td>
+                    <td>
+                        {% if team.win_rate is not none %}
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="progress flex-grow-1" style="max-width: 100px;">
+                                <div class="progress-bar {% if team.win_rate > 0.6 %}bg-success{% elif team.win_rate > 0.4 %}bg-warning{% else %}bg-danger{% endif %}"
+                                     style="width: {{ (team.win_rate * 100)|int }}%"></div>
+                            </div>
+                            <small>{{ "%.0f"|format(team.win_rate * 100) }}%</small>
+                        </div>
+                        {% else %}-{% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}
